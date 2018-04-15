@@ -4,6 +4,8 @@ const NodeHelper = require('node_helper');
 const PythonShell = require('python-shell');
 var pythonStarted = false
 
+const fs = require('fs');
+
 module.exports = NodeHelper.create({
   
   python_start: function () {
@@ -18,10 +20,12 @@ module.exports = NodeHelper.create({
       if (message.hasOwnProperty('login')){
         console.log("[" + self.name + "] " + "User " + self.config.users[message.login.user - 1] + " with confidence " + message.login.confidence + " logged in.");
         self.sendSocketNotification('user', {action: "login", user: message.login.user - 1, confidence: message.login.confidence});
+
         }
       if (message.hasOwnProperty('logout')){
         console.log("[" + self.name + "] " + "User " + self.config.users[message.logout.user - 1] + " logged out.");
         self.sendSocketNotification('user', {action: "logout", user: message.logout.user - 1});
+        
         }
     });
 
@@ -29,17 +33,34 @@ module.exports = NodeHelper.create({
       if (err) throw err;
       console.log("[" + self.name + "] " + 'finished running...');
     });
+    
+    
   },
   
   // Subclass socketNotificationReceived received.
   socketNotificationReceived: function(notification, payload) {
     if(notification === 'CONFIG') {
       this.config = payload
+      
       if(!pythonStarted) {
         pythonStarted = true;
         this.python_start();
         };
-    };
+    }
+    
+    if(notification === 'RUN'){
+        var filePath = '/tmp/enableFaceRec';
+        if(payload){
+            fs.writeFile(filePath,"Yes",(err) => {
+                if(err) throw err;
+            });
+        }
+        else{
+            fs.unlink(filePath,(err) => {
+                  if(err) throw err;
+            });
+        }
+    }
   }
   
 });

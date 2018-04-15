@@ -34,7 +34,9 @@ Module.register('MMM-Facial-Recognition',{
 		//Set of modules which should be shown for every user
 		everyoneClass: "everyone",
 		// Boolean to toggle welcomeMessage
-		welcomeMessage: true
+		welcomeMessage: true,
+        rotate: false,
+        rotateDirection: "left"
 	},
 
 	// Define required translations.
@@ -116,13 +118,16 @@ Module.register('MMM-Facial-Recognition',{
 
 	notificationReceived: function(notification, payload, sender) {
 		if (notification === 'DOM_OBJECTS_CREATED') {
-      var self = this;
+            var self = this;
 			MM.getModules().exceptWithClass("default").enumerate(function(module) {
 				module.hide(1000, function() {
 					Log.log('Module is hidden.');
 				}, {lockString: self.identifier});
 			});
 		}
+		else if(notification === 'USER_PRESENCE'){
+            this.sendSocketNotification('RUN',payload)
+        }
 	},
 
 	start: function() {
