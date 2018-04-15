@@ -21,6 +21,7 @@ import face
 import cv2
 import config
 import signal
+import os.path
 
 def to_node(type, message):
     # convert to json and print (node helper will read from stdout)
@@ -47,13 +48,13 @@ to_node("status", 'Loading training data...')
 # set algorithm to be used based on setting in config.js
 if config.get("recognitionAlgorithm") == 1:
     to_node("status", "ALGORITHM: LBPH")
-    model = cv2.createLBPHFaceRecognizer(threshold=config.get("lbphThreshold"))
+    model = cv2.face.createLBPHFaceRecognizer(threshold=config.get("lbphThreshold"))
 elif config.get("recognitionAlgorithm") == 2:
     to_node("status", "ALGORITHM: Fisher")
-    model = cv2.createFisherFaceRecognizer(threshold=config.get("fisherThreshold"))
+    model = cv2.face.createFisherFaceRecognizer(threshold=config.get("fisherThreshold"))
 else:
     to_node("status", "ALGORITHM: Eigen")
-    model = cv2.createEigenFaceRecognizer(threshold=config.get("eigenThreshold"))
+    model = cv2.face.createEigenFaceRecognizer(threshold=config.get("eigenThreshold"))
 
 # Load training file specified in config.js
 model.load(config.get("trainingFile"))
@@ -77,15 +78,23 @@ while True:
     # Sleep for x seconds specified in module config
     time.sleep(config.get("interval"))
     # if detecion is true, will be used to disable detection if you use a PIR sensor and no motion is detected
-    if detection_active is True:
+    if os.path.isfile("/tmp/enableFaceRec"):
         # Get image
         image = camera.read()
         # Convert image to grayscale.
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        
+        if config.get("rotate"):
+            rows,cols = image.shape
+            degree = -90 if config.get("rotateDirection") == "right" else 90
+            M = cv2.getRotationMatrix2D((cols/2, rows/2),90,1)
+            image = cv2.warpAffine(image,M,(cols,rows))
+
         # Get coordinates of single face in captured image.
         result = face.detect_single(image)
         # No face found, logout user?
         if result is None:
+            to_node("status", 'Nothing found')
             # if last detection exceeds timeout and there is someone logged in -> logout!
             if (current_user is not None and time.time() - login_timestamp > config.get("logoutDelay")):
                 # callback logout to node helper
@@ -93,6 +102,7 @@ while True:
                 same_user_detected_in_row = 0
                 current_user = None
             continue
+        to_node("status", 'Something found')
         # Set x,y coordinates, height and width from face detection result
         x, y, w, h = result
         # Crop image on face. If algorithm is not LBPH also resize because in all other algorithms image resolution has to be the same as training image resolution.
